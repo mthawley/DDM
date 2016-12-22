@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Downstream Dilution Model (circa 2015)
 #
 # BIG NOTE - Unit of analysis is entityID NOT species name
@@ -24,39 +25,41 @@ import pandas as pd
 import numpy as np
 import datetime
 
-def find_cooccurrence(species_location,concentration_file):
+def find_cooccurrence(species_loc,nhd_allocation_file):
     try:
-        # Process range data
-        # Deal with differently named parameters
-        species_range = pd.read_csv(species_location, ',')
-        # Deal with this....
-        if 'LENGTHKM' in species_range.columns:
-            lengthvar = 'LENGTHKM'
-        else:
-            lengthvar = 'LengthKM'
-        if 'COMID' in species_range.columns:
-            comidvar = 'COMID'
-        else:
-            comidvar = 'ComID'    
-        species_stream_km = species_range[lengthvar]
-        total_km = round(sum(species_stream_km),1)
-        species_comids = species_range[[comidvar,lengthvar]]
-        cooccur = pd.merge(concentration_file,species_comids,left_on = 'COMID',right_on=comidvar)
-        cooccur_km = cooccur[lengthvar]
-        km_cooccur = round(cooccur_km.sum(),1)
+                
+        species_stream_km = species_loc['LENGTHKM']
+        
+        # FutureWarning: convert_objects is deprecated.  Use the data-type specific converters pd.to_datetime, pd.to_timedelta and pd.to_numeric.
+        total_km = species_stream_km.sum()
+        species_comids = species_loc[['COMID','LENGTHKM']]
+        species_comids['COMID'] = species_comids['COMID'].astype(int)
+                
+        # fix data type for nhd_allocation_file should probably do this somewhere else when running....
+        nhd_allocation_file['COMID'] = nhd_allocation_file['COMID'].astype(int)
+        cooccur = pd.merge(nhd_allocation_file,species_comids,left_on='COMID',right_on='COMID')
+                   
+        km_cooccur = cooccur['LENGTHKM'].sum()
         if len(cooccur) > 0:
             pct_cooccur = round(km_cooccur/total_km,2)
         else:
             km_cooccur = 0    
+        #print('length of cooccur = ' + km_cooccur)
+            
         return pct_cooccur,km_cooccur,total_km
                                                                                
     except IOError:
+        
+        print 'it no work'
         return None 
         
-def downstream(use_Fn,use_spatial_Fn,inStep,outfile,range_log,CH_log,speciesFn):
+def downstream(chemical_threshold_Fn,nhdplus_use_accumuation_Fn,inStep,outfile,range_log,CH_log,speciesFn):
         
     # File with species name, ESA group and HUC2s, just going to loop through this file (email Jen Connolly 10/5/2015, file on sharepoint)   
-    species_file = pd.read_csv(speciesFn)
+    try:
+        species_file = pd.read_csv(speciesFn)
+    except:
+        print('Could not find file' + speciesFn)
         
     # Thresholds from Kris Garber email 10/5/2015 
     # Step 1 threshold
@@ -93,8 +96,10 @@ def downstream(use_Fn,use_spatial_Fn,inStep,outfile,range_log,CH_log,speciesFn):
     #email Katrina White 11/3/2015 filename: 'Appendix Y1 Aquatic EECs Step1_2.xlsx'
     use_dict = {}
     huc2s = ['01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18']
+    
+    #huc2s = ['01','02','03']
         
-    with open(use_Fn) as f:
+    with open(chemical_threshold_Fn) as f:
         for line in f:
             line = line[:-1]
             vals = line.split(',')
@@ -102,7 +107,8 @@ def downstream(use_Fn,use_spatial_Fn,inStep,outfile,range_log,CH_log,speciesFn):
                 h, e = huc2s[i],vals[i+1]
                 use_dict[h] = e
     
-    species_list = glob.glob(mainpath + 'csv_streams' + '/*Streams*.csv') 
+    #species_list = glob.glob(mainpath + 'csv_streams' + '/*Streams*.csv')
+    species_list = glob.glob(mainpath + 'CSV' + '/*Streams*.csv')  
                                                                
     # loop through species list         
     for index, row in species_file.iterrows():
@@ -123,7 +129,7 @@ def downstream(use_Fn,use_spatial_Fn,inStep,outfile,range_log,CH_log,speciesFn):
                 #RQ = concentration / threshold
                 #DF = 1 / RQ  ....or....
                 DF = threshold / concentration
-                                    
+                                 
             #Need to loop through the nhd+ processing units for hucs 3 and 10 and skip hucs 19 - 21: 
             if huc2 == '03':
                 huclist = ['03S','03N','03W']
@@ -135,33 +141,48 @@ def downstream(use_Fn,use_spatial_Fn,inStep,outfile,range_log,CH_log,speciesFn):
                 huclist = [huc2]
                 
             for huc in huclist:   
-                fn = ca3t_path + use_spatial_Fn + '_' + huc + '.csv'
-                nhd_concentration_table = pd.read_csv(fn, ',')
+                fn = ca3t_path + nhdplus_use_accumuation_Fn + '_' + huc + '.csv'
+                columns=['COMID','0_local','1_local','0_all_upstream','1_all_upstream','LocalFrac','FullFrac']
+                nhd_concentration_table = pd.read_csv(fn, ',',names=columns,header=0)
+                                                             
                 # Select all streams that exceed DF
-                upstream = nhd_concentration_table[(nhd_concentration_table.FullFrac_1 > DF)]
+                #upstream = nhd_concentration_table[(nhd_concentration_table.FullFrac_1 > DF)]
+                upstream = nhd_concentration_table[(nhd_concentration_table.FullFrac > DF)]
+                #print('length of upstream ' + str(len(upstream)))
                 # Also include all streams inside use area ( PCA > 0) - "initial area of concern" does not depend on species location
-                within_basin = nhd_concentration_table[(nhd_concentration_table.LocalFrac_1 > 0)]
+                #within_basin = nhd_concentration_table[(nhd_concentration_table.LocalFrac_1 > 0)]
+                within_basin = nhd_concentration_table[(nhd_concentration_table.LocalFrac > 0)]
                 # combine within basin and upstream streams
+                #print('length of within basin ' + str(len(within_basin)))
                 nhd_all = within_basin.merge(upstream,left_on='COMID',right_on='COMID',how='outer')
                 # Just need list of COMIDS    
                 nhd_lut = nhd_all['COMID']
                 n = nhd_lut.to_frame()
-                                    
-                # Species Range and Critical Habitat files                
-                species_CH_fn = mainpath + '/csv_streams/CH_Streams_' + str(entityID) + '.csv'
-                species_range_fn = mainpath + '/csv_streams/Streams_' + str(entityID) + '.csv'
-                          
+                #print('length of n: ',str(len(n)))
+                                
+                # NEXT: Species Range and Critical Habitat files                
+                #species_CH_fn = mainpath + '/CSV/CH_Streams_' + str(entityID) + '.csv'
+                species_CH_fn = mainpath + 'CSV/CH_Streams_' + str(entityID) + '.csv'
+                #species_range_fn = mainpath + '/CSV/Streams_' + str(entityID) + '.csv'
+                species_range_fn = mainpath + 'CSV/R_Streams_' + str(entityID) + '.csv'
+                                                                                                  
                 # Process species range file
+                
+                species_columns = ['COMID','FDATE','RESOLUTION','GNIS_ID','GNIS_NAME','LENGTHKM','REACHCODE','FLOWDIR','WBAREACOMI','FTYPE','FCODE','SHAPE_LENG','ENABLED','GNIS_NBR']
+                    
                 try:
                     # Compare exceeding streams against species occurance (cooccurence)
-                    sp_pct_cooccur,sp_km_cooccur,sp_total_km = find_cooccurrence(species_range_fn,n)  
+                    species_range = pd.read_csv(species_range_fn, sep=',',names=species_columns,header=0)
+                    sp_pct_cooccur,sp_km_cooccur,sp_total_km = find_cooccurrence(species_range,n)  
                     outfile.write(str(entityID) + ',' + species_name + ',' + ESA_group + ',' + toxtest + ',range,' + huc[:2] + ',' + use + ',' + str(sp_pct_cooccur) + ',' + str(sp_km_cooccur) + ',' + str(sp_total_km) + '\n')    
                 except:
+                    print('co occur thing went south')
                     missing_range.add(species_name)
                                     
                 # Process critical habitat file when available
                 try:
-                    sp_pct_cooccur,sp_km_cooccur,sp_total_km = find_cooccurrence(species_CH_fn,n)  
+                    species_CH = pd.read_csv(species_CH_fn, sep=',',names=species_columns,header=0)
+                    sp_pct_cooccur,sp_km_cooccur,sp_total_km = find_cooccurrence(species_CH,n)  
                     fout.write(str(entityID) + ',"' + species_name + '",' + ESA_group + ',' + toxtest + ',critical habitat,' + huc2[:2] + ',' + use + ',' + str(sp_pct_cooccur) + ',' + str(sp_km_cooccur) + ',' + str(sp_total_km) + '\n')    
                 except:
                     missing_CH.add(species_name)
@@ -177,20 +198,22 @@ def downstream(use_Fn,use_spatial_Fn,inStep,outfile,range_log,CH_log,speciesFn):
 if __name__ == "__main__":
     
     chemical = 'diazinon'
-    date = '100516'
-    pest_uses = {'orchards': 'cdl_1014_70x','vegetables': 'cdl_1014_60x','nurseries':'all_nurseries'} # use and corresponding use layer name (Steve)
-    #pest_uses = {'alluses': 'diazinon_1504'}
+    date = '122116_CH_only'
+    pest_uses = {'orchards': 'cdl_1015_70x2','vegetables': 'cdl_1015_60x2','nurseries':'conus_nurseri'} # use and corresponding use layer name (Steve)
+    #pest_uses = {'alluses': 'diazinon'}
+    #pest_uses = {'orchards': 'cdl_1015_70x2'}
     step = 2
         
-    mainpath = 'C:/Users/mthawley/Documents/ESA/DDM/testrun/'
+    mainpath = 'C:/Users/mthawley/Documents/ESA/DDM/diazinon_redo_dec2016/'
+    #mainpath = 'C:/EPA/ESA/DDM_Diazinon_Dec2016/'
     
     # diazinon input data from email Katrina White 11/3/2015 filename: 'Appendix Y1 Aquatic EECs Step1_2.xlsx'
-    #concentration_fn = mainpath + chemical + '_concentrations' + '_' + date + '.txt'
-    concentration_fn = mainpath + 'diazinon_concentration_file_100516.txt'
+    #chemical_specific_input_concentrations_Fn = mainpath + chemical + '_concentrations' + '_' + date + '.txt'
+    chemical_specific_input_concentrations_Fn = mainpath + 'diazinon_concentration_file_121216.txt'
     
     # Species file list - use latest and greatest from Jen
-    #species_input_fn = mainpath + 'speciesv2.csv'
-    species_input_fn = mainpath + 'speciesv2_10077.csv'
+    species_location_input_fn = mainpath + 'DD_SpeciesTables_20161214.csv'
+    #species_location_input_fn = mainpath + 'speciesv2_10077.csv'
        
     # Output file setup
     f = mainpath + chemical + '_results_step' + str(step) + '_' + date + '.txt'
@@ -206,11 +229,12 @@ if __name__ == "__main__":
     missing_range = set()
     missing_CH = set()
     
-    ca3t_path = mainpath + 'ca3t_results/'
+    ca3t_path = mainpath + 'DDM_12_2016/'
     for use in pest_uses:
         print(use)  
-        use_spatial_Fn = pest_uses[use]
-        downstream(concentration_fn,use_spatial_Fn,step,fout,missingRlog,missingCHlog,species_input_fn)
+        nhdplus_use_accumuation_Fn = pest_uses[use]
+        downstream(chemical_specific_input_concentrations_Fn,nhdplus_use_accumuation_Fn,step,fout,missingRlog,missingCHlog,species_location_input_fn)
+        
     fout.close()
     missingRlog.close()
     missingCHlog.close()      
