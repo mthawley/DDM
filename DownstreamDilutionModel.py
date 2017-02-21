@@ -27,7 +27,13 @@ import datetime
 
 def find_cooccurrence(species_loc,nhd_allocation_file):
     try:
+        
+        if 'LengthKM' in species_loc.columns:
+            species_loc = species_loc.rename(columns={'LengthKM': 'LENGTHKM'})
                 
+        if 'ComID' in species_loc.columns:
+            species_loc = species_loc.rename(columns={'ComID': 'COMID'})
+       
         species_stream_km = species_loc['LENGTHKM']
         
         # FutureWarning: convert_objects is deprecated.  Use the data-type specific converters pd.to_datetime, pd.to_timedelta and pd.to_numeric.
@@ -60,38 +66,46 @@ def downstream(chemical_threshold_Fn,nhdplus_use_accumuation_Fn,inStep,outfile,r
         species_file = pd.read_csv(speciesFn)
     except:
         print('Could not find file' + speciesFn)
-        
-    # Thresholds from Kris Garber email 10/5/2015 
+    
+    # Spreadsheet from Chuck 2/7/17 (I think)
     # Step 1 threshold
-    max_threshold = 0.044
+    max_threshold = 0.3  # check this????
     # Step 2 thresholds
-    direct_fish_and_amphibians = 0.47
-    direct_aquatic_invertebrates = 0.044
-    direct_plants = 500 
-    indirect_fish_and_amphibians = 0.47
-    indirect_invertebrates = 0.228
-    indirect_plants = 3700          
+    direct_fish = 35
+    direct_amphibians = 52
+    direct_aquatic_invertebrates = 0.3
+    direct_plants = 29800
+     
+    indirect_fish = 46
+    indirect_amphibians = 186
+    indirect_aquatic_invertebrates = 1
+    indirect_plants = 59500
     
     if inStep == 1:
         thresholdsDicts = {'step1':{'step1max':max_threshold}}
     elif inStep == 2: 
         # Find reference for these endpoints (email?)          
-        thresholdsDicts = {'Aquatic-dependent Birds': {"direct_fish_and_amphibians": direct_fish_and_amphibians, "indirect_invertebrates": indirect_invertebrates}, 
-            'Aquatic-dependent Mammals': {"direct_fish_and_amphibians": direct_fish_and_amphibians, "indirect_invertebrates": indirect_invertebrates},
-            'Aquatic Amphibians': {"direct_fish_and_amphibians": direct_fish_and_amphibians, "indirect_invertebrates": indirect_invertebrates, "indirect_plants": indirect_plants},
+        thresholdsDicts = {'Aquatic-dependent Birds': {"indirect_fish": indirect_fish, "indirect_aquatic_invertebrates": indirect_aquatic_invertebrates}, 
+            'Aquatic-dependent Mammals': {"indirect_fish": indirect_fish, "indirect_aquatic_invertebrates": indirect_aquatic_invertebrates},
+            'Aquatic Amphibians': {"direct_aquatic_inverts": direct_aquatic_invertebrates, "direct_amphibians": direct_amphibians, 
+                        "indirect_aquatic_invertebrates": indirect_aquatic_invertebrates, "indirect_amphibians": indirect_amphibians},
             'Aquatic Plants - vascular': {"direct_plants": direct_plants, "indirect_plants": indirect_plants},
             'Aquatic Plants - non-vascular' : {"direct_plants": direct_plants, "indirect_plants": indirect_plants},
-            'Aquatic plants non-vascular' : {"direct_plants": direct_plants, "indirect_plants": indirect_plants, "indirect_plants": indirect_plants},
-            'Aquatic Reptiles': {"direct_fish_and_amphibians": direct_fish_and_amphibians, "indirect_invertebrates": indirect_invertebrates, "indirect_plants": indirect_plants},
-            'Freshwater Fish': {"direct_fish_and_amphibians": direct_fish_and_amphibians, "indirect_invertebrates": indirect_invertebrates, "indirect_plants": indirect_plants},
-            'Freshwater Invertebrates': {"direct_aquatic_invertebrates": direct_aquatic_invertebrates, "indirect_invertebrates": indirect_invertebrates, "indirect_plants": indirect_plants},
-            'Freshwater Mammals': {"direct_fish_and_amphibians": direct_fish_and_amphibians, "indirect_invertebrates": indirect_invertebrates, "indirect_plants": indirect_plants},
-            'Marine Fish': {"direct_fish_and_amphibians": direct_fish_and_amphibians, "indirect_invertebrates": indirect_invertebrates, "indirect_plants": indirect_plants}, 
-            'Marine Invertebrates': {"direct_aquatic_invertebrates": direct_aquatic_invertebrates, "indirect_invertebrates": indirect_invertebrates, "indirect_plants": indirect_plants},
-            'Marine Mammals': {"direct_fish_and_amphibians": direct_fish_and_amphibians, "indirect_invertebrates": indirect_invertebrates, "indirect_plants": indirect_plants},
-            'Marine Reptiles': {"direct_fish_and_amphibians": direct_fish_and_amphibians, "indirect_invertebrates": indirect_invertebrates, "indirect_plants": indirect_plants},
-            'Mollusks': {"direct_aquatic_invertebrates": direct_aquatic_invertebrates, "indirect_invertebrates": indirect_invertebrates, "indirect_plants": indirect_plants} }      
-            
+            'Aquatic Reptiles': {"indirect_fish": indirect_fish, "indirect_aquatic_invertebrates": indirect_aquatic_invertebrates},
+            'Freshwater Fish': {"direct_fish": direct_fish, "direct_aquatic_invertebrates": direct_aquatic_invertebrates, "direct_plants": direct_plants,
+                        "indirect_fish": indirect_fish, "indirect_aquatic_invertebrates": indirect_aquatic_invertebrates, "indirect_plants": indirect_plants},
+            'Freshwater Invertebrates': {"direct_fish": direct_fish, "direct_aquatic_invertebrates": direct_aquatic_invertebrates, "direct_plants": direct_plants,
+                        "indirect_fish": indirect_fish, "indirect_aquatic_invertebrates": indirect_aquatic_invertebrates, "indirect_plants": indirect_plants},         
+            'Freshwater Mammals': {"indirect_fish": indirect_fish, "indirect_aquatic_invertebrates": indirect_aquatic_invertebrates},
+            'Marine Fish': {"direct_fish": direct_fish, "direct_aquatic_invertebrates": direct_aquatic_invertebrates, "direct_plants": direct_plants,
+                        "indirect_fish": indirect_fish, "indirect_aquatic_invertebrates": indirect_aquatic_invertebrates, "indirect_plants": indirect_plants},
+            'Marine Invertebrates': {"direct_fish": direct_fish, "direct_aquatic_invertebrates": direct_aquatic_invertebrates, "direct_plants": direct_plants,
+                        "indirect_fish": indirect_fish, "indirect_aquatic_invertebrates": indirect_aquatic_invertebrates, "indirect_plants": indirect_plants},
+            'Marine Mammals': {"indirect_fish": indirect_fish, "indirect_aquatic_invertebrates": indirect_aquatic_invertebrates}, 
+            'Marine Reptiles': {"indirect_fish": indirect_fish, "indirect_aquatic_invertebrates": indirect_aquatic_invertebrates}, 
+            'Mollusks': {"direct_fish": direct_fish, "direct_aquatic_invertebrates": direct_aquatic_invertebrates, "direct_plants": direct_plants,
+                        "indirect_fish": indirect_fish, "indirect_aquatic_invertebrates": indirect_aquatic_invertebrates, "indirect_plants": indirect_plants}}
+    
     # Read in Concentration Table Per Use Per HUC2
     #email Katrina White 11/3/2015 filename: 'Appendix Y1 Aquatic EECs Step1_2.xlsx'
     use_dict = {}
@@ -140,52 +154,60 @@ def downstream(chemical_threshold_Fn,nhdplus_use_accumuation_Fn,inStep,outfile,r
             else:
                 huclist = [huc2]
                 
-            for huc in huclist:   
-                fn = ca3t_path + nhdplus_use_accumuation_Fn + '_' + huc + '.csv'
-                columns=['COMID','0_local','1_local','0_all_upstream','1_all_upstream','LocalFrac','FullFrac']
-                nhd_concentration_table = pd.read_csv(fn, ',',names=columns,header=0)
-                                                             
-                # Select all streams that exceed DF
-                #upstream = nhd_concentration_table[(nhd_concentration_table.FullFrac_1 > DF)]
-                upstream = nhd_concentration_table[(nhd_concentration_table.FullFrac > DF)]
-                #print('length of upstream ' + str(len(upstream)))
-                # Also include all streams inside use area ( PCA > 0) - "initial area of concern" does not depend on species location
-                #within_basin = nhd_concentration_table[(nhd_concentration_table.LocalFrac_1 > 0)]
-                within_basin = nhd_concentration_table[(nhd_concentration_table.LocalFrac > 0)]
-                # combine within basin and upstream streams
-                #print('length of within basin ' + str(len(within_basin)))
-                nhd_all = within_basin.merge(upstream,left_on='COMID',right_on='COMID',how='outer')
-                # Just need list of COMIDS    
-                nhd_lut = nhd_all['COMID']
-                n = nhd_lut.to_frame()
-                #print('length of n: ',str(len(n)))
-                                
-                # NEXT: Species Range and Critical Habitat files                
-                #species_CH_fn = mainpath + '/CSV/CH_Streams_' + str(entityID) + '.csv'
-                species_CH_fn = mainpath + 'CSV/CH_Streams_' + str(entityID) + '.csv'
-                #species_range_fn = mainpath + '/CSV/Streams_' + str(entityID) + '.csv'
-                species_range_fn = mainpath + 'CSV/R_Streams_' + str(entityID) + '.csv'
-                                                                                                  
-                # Process species range file
-                
-                species_columns = ['COMID','FDATE','RESOLUTION','GNIS_ID','GNIS_NAME','LENGTHKM','REACHCODE','FLOWDIR','WBAREACOMI','FTYPE','FCODE','SHAPE_LENG','ENABLED','GNIS_NBR']
-                    
+            for huc in huclist: 
+                  
+                fn = ca3t_path + 'region_' + huc + '_' + nhdplus_use_accumuation_Fn + '.csv'
+                #columns=['COMID','0_local','1_local','0_all_upstream','1_all_upstream','LocalFrac','FullFrac']
+                columns=['COMID','0_local','1_local','totalarea_local','pct_0_local','LocalFrac','0_total','1_total','TotalArea_total','pct_0_total','FullFrac']
                 try:
-                    # Compare exceeding streams against species occurance (cooccurence)
-                    species_range = pd.read_csv(species_range_fn, sep=',',names=species_columns,header=0)
-                    sp_pct_cooccur,sp_km_cooccur,sp_total_km = find_cooccurrence(species_range,n)  
-                    outfile.write(str(entityID) + ',' + species_name + ',' + ESA_group + ',' + toxtest + ',range,' + huc[:2] + ',' + use + ',' + str(sp_pct_cooccur) + ',' + str(sp_km_cooccur) + ',' + str(sp_total_km) + '\n')    
-                except:
-                    print('co occur thing went south')
-                    missing_range.add(species_name)
+                    nhd_concentration_table = pd.read_csv(fn, ',',names=columns,header=0)
+                    # Select all streams that exceed DF
+                    #upstream = nhd_concentration_table[(nhd_concentration_table.FullFrac_1 > DF)]
+                    upstream = nhd_concentration_table[(nhd_concentration_table.FullFrac > DF)]
+                    #print('length of upstream ' + str(len(upstream)))
+                    # Also include all streams inside use area ( PCA > 0) - "initial area of concern" does not depend on species location
+                    #within_basin = nhd_concentration_table[(nhd_concentration_table.LocalFrac_1 > 0)]
+                    within_basin = nhd_concentration_table[(nhd_concentration_table.LocalFrac > 0)]
+                    # combine within basin and upstream streams
+                    #print('length of within basin ' + str(len(within_basin)))
+                    nhd_all = within_basin.merge(upstream,left_on='COMID',right_on='COMID',how='outer')
+                    # Just need list of COMIDS    
+                    nhd_lut = nhd_all['COMID']
+                    n = nhd_lut.to_frame()
+                    #print('length of n: ',str(len(n)))
                                     
-                # Process critical habitat file when available
-                try:
-                    species_CH = pd.read_csv(species_CH_fn, sep=',',names=species_columns,header=0)
-                    sp_pct_cooccur,sp_km_cooccur,sp_total_km = find_cooccurrence(species_CH,n)  
-                    fout.write(str(entityID) + ',"' + species_name + '",' + ESA_group + ',' + toxtest + ',critical habitat,' + huc2[:2] + ',' + use + ',' + str(sp_pct_cooccur) + ',' + str(sp_km_cooccur) + ',' + str(sp_total_km) + '\n')    
+                    # NEXT: Species Range and Critical Habitat files                
+                    #species_CH_fn = mainpath + '/CSV/CH_Streams_' + str(entityID) + '.csv'
+                    species_CH_fn = mainpath + 'CSV/CH_Streams_' + str(entityID) + '.csv'
+                    #species_range_fn = mainpath + '/CSV/Streams_' + str(entityID) + '.csv'
+                    species_range_fn = mainpath + 'CSV/R_Streams_' + str(entityID) + '.csv'
+                                                                                                    
+                    # Process species range file
+                    
+                    #species_columns = ['COMID','FDATE','RESOLUTION','GNIS_ID','GNIS_NAME','LENGTHKM','REACHCODE','FLOWDIR','WBAREACOMI','FTYPE','FCODE','SHAPE_LENG','ENABLED','GNIS_NBR']
+                    #species_columns = ['COMID','FDATE','RESOLUTION','GNIS_ID','GNIS_NAME','LENGTHKM','REACHCODE','FLOWDIR','WBAREACOMI','FTYPE','FCODE','SHAPE_LENG','ENABLED']
+                        
+                    try:
+                        # Compare exceeding streams against species occurance (cooccurence)
+                        #species_range = pd.read_csv(species_range_fn, sep=',',names=species_columns,header=0)
+                        species_range = pd.read_csv(species_range_fn, sep=',')
+                        sp_pct_cooccur,sp_km_cooccur,sp_total_km = find_cooccurrence(species_range,n)  
+                        outfile.write(str(entityID) + ',' + species_name + ',' + ESA_group + ',' + toxtest + ',range,' + huc[:2] + ',' + use + ',' + str(sp_pct_cooccur) + ',' + str(sp_km_cooccur) + ',' + str(sp_total_km) + '\n')    
+                    except:
+                        print('co occur thing went south')
+                        missing_range.add(species_name)
+                                        
+                    # Process critical habitat file when available
+                    try:
+                        #species_CH = pd.read_csv(species_CH_fn, sep=',',names=species_columns,header=0)
+                        species_CH = pd.read_csv(species_CH_fn, sep=',')
+                        sp_pct_cooccur,sp_km_cooccur,sp_total_km = find_cooccurrence(species_CH,n)  
+                        fout.write(str(entityID) + ',"' + species_name + '",' + ESA_group + ',' + toxtest + ',critical habitat,' + huc2[:2] + ',' + use + ',' + str(sp_pct_cooccur) + ',' + str(sp_km_cooccur) + ',' + str(sp_total_km) + '\n')    
+                    except:
+                        missing_CH.add(species_name)
                 except:
-                    missing_CH.add(species_name)
+                        print('HUC ' + huc + ' has no use for this use')                                            
+                
                 
     # Write missing data to range and CH log files
     range_log.write("Missing Species Range Files" + '\n')
@@ -197,30 +219,48 @@ def downstream(chemical_threshold_Fn,nhdplus_use_accumuation_Fn,inStep,outfile,r
       
 if __name__ == "__main__":
     
-    chemical = 'diazinon'
-    date = '122116_CH_only'
-    pest_uses = {'orchards': 'cdl_1015_70x2','vegetables': 'cdl_1015_60x2','nurseries':'conus_nurseri'} # use and corresponding use layer name (Steve)
-    #pest_uses = {'alluses': 'diazinon'}
-    #pest_uses = {'orchards': 'cdl_1015_70x2'}
+    chemical = 'methomyl'
+    date = '021617'
+    pest_uses = {'corn': 'orn_1015_1610',
+                'cotton': 'otton_1015_16',
+                'developed':'developed',
+                'pasture': 'pasturehaysil',
+                'orchards': 'rchardsviney',
+                'other_crops':'thercrops_101',
+                'other_grains': 'thergrains_10',
+                'other_rowcrops': 'therrowcrop',
+                'soybean': 'oybeans_1015',
+                'vegetables': 'vegetablesgro',
+                'wheat': 'wheat_1015_16',
+                'bermuda_grass': 'pasturehaysil'} # use and corresponding use layer name (Steve)
+    
+    #pest_uses = {'vegetables':'vegetablesgro','pasture': 'pasturehaysil','bermuda_grass':'pasturehaysil'}
+    #pest_uses = {'other_crops':'thercrops_101'}
+    
+    #pest_uses = {'alluses': 'm_footrprint'}
     step = 2
-        
-    mainpath = 'C:/Users/mthawley/Documents/ESA/DDM/diazinon_redo_dec2016/'
+    mainpath = 'C:/Users/mthawley/Documents/ESA/DDM/methomyl/'
     #mainpath = 'C:/EPA/ESA/DDM_Diazinon_Dec2016/'
     
     # diazinon input data from email Katrina White 11/3/2015 filename: 'Appendix Y1 Aquatic EECs Step1_2.xlsx'
     #chemical_specific_input_concentrations_Fn = mainpath + chemical + '_concentrations' + '_' + date + '.txt'
-    chemical_specific_input_concentrations_Fn = mainpath + 'diazinon_concentration_file_121216.txt'
+    chemical_specific_input_concentrations_Fn = mainpath + 'methomyl_concentration_file_020817.txt'
     
     # Species file list - use latest and greatest from Jen
     species_location_input_fn = mainpath + 'DD_SpeciesTables_20161214.csv'
     #species_location_input_fn = mainpath + 'speciesv2_10077.csv'
-       
-    # Output file setup
-    f = mainpath + chemical + '_results_step' + str(step) + '_' + date + '.txt'
-    fout = open(f,'w')
-    fout.write("entityID,species,ESA_group,toxthreshold,range_CH,huc2,use,pct_cooccur,km_cooccur,km_spc_total\n")
-     
-    # log files for missing species data (maybe don't need these?)     
+    #species_location_input_fn = mainpath + 'missed_species_makeup.txt'
+    #species_location_input_fn = mainpath + 'just_species_265.csv'
+    
+    # Moving output so it's one use per output file in step2     
+    ## Output file setup
+    #f = mainpath + chemical + '_results_step' + str(step) + '_' + date + '.txt'
+    #fout = open(f,'w')
+    #fout.write("entityID,species,ESA_group,toxthreshold,range_CH,huc2,use,pct_cooccur,km_cooccur,km_spc_total\n")
+    # 
+    # log files for missing species data (maybe don't need these?)   
+    
+    # Change this when I get a chance.  Only needs to run for step1, probably...    
     f = mainpath + chemical + '_missing_range_data_' + date + '.txt'
     missingRlog = open(f,'w')
     f = mainpath +  chemical + '_missing_CH_data_' + date + '.txt'
@@ -229,12 +269,17 @@ if __name__ == "__main__":
     missing_range = set()
     missing_CH = set()
     
-    ca3t_path = mainpath + 'DDM_12_2016/'
+    ca3t_path = mainpath + 'ca3t_results/'
     for use in pest_uses:
         print(use)  
+        # Moving output so it's one use per output file in step2     
+        ## Output file setup
+        f = mainpath + chemical + '_results_step' + str(step) + '_' + date + '_' + use + '.txt'
+        fout = open(f,'w')
+        fout.write("entityID,species,ESA_group,toxthreshold,range_CH,huc2,use,pct_cooccur,km_cooccur,km_spc_total\n")
         nhdplus_use_accumuation_Fn = pest_uses[use]
         downstream(chemical_specific_input_concentrations_Fn,nhdplus_use_accumuation_Fn,step,fout,missingRlog,missingCHlog,species_location_input_fn)
         
-    fout.close()
+        fout.close()
     missingRlog.close()
     missingCHlog.close()      
